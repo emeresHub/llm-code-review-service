@@ -1,0 +1,26 @@
+# Prevent copying your local venv into the Docker image
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Git & dotenv
+.git/
+.env
+*.env
+
+# IDE/editor configs
+.vscode/
+.idea/
+
+# Notebook metadata
+.ipynb_checkpoints/
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db
+

@@ -1,0 +1,79 @@
+## Code Review Issues:
+
+* **Missing Docstrings (Medium):**  Neither `add_numbers` nor `greet` functions have docstrings explaining their purpose and parameters.  This makes the code harder to understand and maintain.
+
+* **Missing Function Descriptions (Medium):** While the function names are self-explanatory, adding a brief docstring would improve clarity and adhere to best practices.
+
+* **Inconsistent use of `print` vs return (Medium):** `add_numbers` returns a value, which is good practice.  `greet` however uses `print`, making it harder to use in other contexts.  Consider having `greet` return the greeting string instead of printing it directly.
+
+* **Lack of Error Handling (Low):**  The code doesn't handle potential errors (e.g., if `add_numbers` receives non-numeric inputs). While not critical for this simple example, robust error handling should be considered in production code.
+
+* **No Module Structure (Low):** For a larger project, this code would benefit from being split into modules.  However, for this small example, it's not a high priority.
+
+
+## Suggestions for Improvements:
+
+1. **Add Docstrings:**
+
+```python
+def add_numbers(a, b):
+    """Adds two numbers together.
+
+    Args:
+        a: The first number.
+        b: The second number.
+
+    Returns:
+        The sum of a and b.
+    """
+    return a + b
+
+def greet(name):
+    """Greets the given name.
+
+    Args:
+        name: The name to greet.
+
+    Returns:
+        The greeting string.
+    """
+    return "Hello, " + name
+
+```
+
+2. **Modify `greet` to return a string:** The `print` statement is moved to the `if __name__ == "__main__":` block.
+
+```python
+if __name__ == "__main__":
+    result = add_numbers(3, 5)
+    print("Sum is:", result)
+    greeting = greet("Alice")
+    print(greeting)
+
+```
+
+3. **Consider Error Handling (for future expansion):**  For example, in `add_numbers`, you could add a check to ensure that both inputs are numbers.
+
+```python
+def add_numbers(a, b):
+    """Adds two numbers together.
+
+    Args:
+        a: The first number.
+        b: The second number.
+
+    Returns:
+        The sum of a and b.
+        Returns an error message if inputs are not numbers.
+    """
+    if not isinstance(a,(int,float)) or not isinstance(b,(int,float)):
+        return "Error: Inputs must be numbers."
+    return a + b
+```
+
+4. **(For larger projects) Modular Design:** Split the code into separate files (e.g., `math_utils.py` for `add_numbers` and `greetings.py` for `greet`).
+
+
+## Summary:
+
+The code is functional but lacks sufficient documentation and robust error handling.  The suggested improvements will significantly enhance readability, maintainability, and adherence to best practices.  The severity of the issues is generally medium, except for the lack of modular design which is low for this simple example but should be considered for larger applications.
