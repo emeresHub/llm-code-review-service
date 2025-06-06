@@ -1,0 +1,99 @@
+<!-- app/templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AuditLens AI Review</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Bootstrap 5 CSS (for grid, buttons, etc.) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-ENjdO4Dr2bkB..."
+    crossorigin="anonymous"
+  />
+
+  <!-- Font Awesome (for the upload icons) -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-..."
+    crossorigin="anonymous"
+  />
+
+  <!-- Marked.js (client‐side Markdown→HTML) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+    integrity="sha256-XJXe..."
+    crossorigin="anonymous"
+  ></script>
+
+  <!-- Our custom styles (see next section) -->
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <!--
+    We use a full‐width container-fluid so the header can span the entire viewport.
+    Then we center an inner fixed‐width “card” (.app‐card) for the upload/UI elements.
+  -->
+  <div class="container-fluid p-0 bg‐header">
+    <div class="app-header text-center py-4">
+      <h1>AuditLens AI Review</h1>
+      <p class="subtitle">Upload your code & standards for instant quality analysis</p>
+    </div>
+  </div>
+
+  <div class="container-fluid p-0 bg-light-custom">
+    <div class="container app-card my-5 p-4 shadow-sm">
+      <!-- Upload Section (two cards side by side on md+) -->
+      <div class="row g-4 upload-section">
+        <!-- Code Upload Card -->
+        <div class="col-md-6">
+          <div id="code-upload-card" class="upload-card text-center h-100">
+            <i class="fas fa-file-code fa-3x mb-3 text-primary"></i>
+            <p class="mb-1"><strong>Upload Your Code File</strong></p>
+            <p class="small text-muted">Any file extension accepted</p>
+            <input type="file" id="code-file" accept="*/*" />
+            <p id="code-filename" class="mt-2 text-primary small"></p>
+          </div>
+        </div>
+
+        <!-- Standards Upload Card -->
+        <div class="col-md-6">
+          <div id="standards-upload-card" class="upload-card text-center h-100">
+            <i class="fas fa-clipboard-check fa-3x mb-3 text-primary"></i>
+            <p class="mb-1"><strong>Upload Coding Standards</strong></p>
+            <p class="small text-muted">.docx or .txt files</p>
+            <input type="file" id="standards-file" accept=".docx,.txt" />
+            <p id="standards-filename" class="mt-2 text-primary small"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review Button -->
+      <div class="row">
+        <div class="col text-center">
+          <button id="review-btn" class="btn btn-primary mt-4" disabled>
+            <span class="btn-text">Review My Code</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Output Container -->
+      <div id="output-container" class="mt-5">
+        <div id="output"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Our custom JavaScript logic (after Marked.js) -->
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

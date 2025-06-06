@@ -1,95 +1,176 @@
-# 🔍 SmartCodeReview – AI-Powered Code Review with Gemini and LangChain
+# SmartCodeReview
 
-**SmartCodeReview** automatically checks your Python code against **custom team coding standards** using Google Gemini, LangChain, and FAISS. It produces precise, contextual review reports and suggested fixes based on your real coding rules — not generic AI feedback.
-
----
-
-## 📌 Overview
-
-* **Input:** Raw code
-* **Process:** Semantic chunking of your coding standards document + vector search using FAISS
-* **LLM:** Google Gemini generates custom review feedback and code fixes
-* **Output:** Detailed review saved as a `.txt` file in a local `reviews` folder for easy inspection
-
-Ideal for teams wanting **automated, consistent, and explainable code reviews** that integrate your own rules.
+A lightweight web app that lets you upload code and custom coding standards to get AI‐powered reviews and suggested fixes instantly.
 
 ---
 
-## 🚀 Quick Start Using Docker (Recommended)
+## 🚀 Project Overview
+
+* **What it does:**
+
+  1. You upload a code file (any language).
+  2. You upload a “coding standards” document ( .docx or .txt ).
+  3. The app uses FAISS to pick the most relevant rules, then sends both code + rules to a pre‐trained LLM.
+  4. The LLM returns a Markdown‐formatted review (with severity labels) and a suggested fix.
+  5. Your browser renders the results—no more copy/pasting or manual formatting.
+
+* **Why it matters:**
+
+  * Enforces **your team’s real coding rules**, not generic AI heuristics.
+  * Delivers **consistent, explainable** feedback on every PR.
+  * Saves hours of manual code reviewing and reduces merge‐conflict churn.
+
+---
+
+## 🖼️ Example Results
+
+<details>
+<summary>Click to expand a sample output (Markdown → HTML)</summary>
+
+````markdown
+⭐ **Review Comments**  
+• **High:** Missing docstrings for `add_numbers` and `greet`—docstrings are required by guideline 3.  
+• **Medium:** `greet` uses string concatenation; use f-strings for readability.  
+• **Low:** No blank line separating functions (guideline 8).
+
+⭐ **Suggested Fix**
+```python
+def add_numbers(a: int, b: int) -> int:
+    """
+    Add two numbers together.
+
+    :param a: first number
+    :param b: second number
+    :return: sum of a and b
+    """
+    return a + b
+
+def greet(name: str) -> None:
+    """
+    Print a greeting message.
+
+    :param name: The name to greet.
+    """
+    print(f"Hello, {name}")
+````
+
+**Code Quality Score:** 0.75 / 10
+
+````
+
+_In your browser, it renders as neatly styled HTML, complete with colored severity badges and a “Code Quality Score” box at the top._
+
+</details>
+
+---
+
+## 🛠️ Getting Started
 
 ### Prerequisites
 
-* Have a valid **GEMINI\_API\_KEY** from Google Gemini
-* Docker installed and running on your system
-* A local directory containing your Python code files to review
+1. **Python 3.9+** (for local run)  
+2. **Docker (optional)**  
+3. **GEMINI_API_KEY** (or any LLM key stored in `.env`)  
+4. **`python‐multipart`** installed (FastAPI needs it to parse file uploads)  
 
 ---
 
-### Step 1: Pull the Docker Image
+### 1. Clone & Install
 
 ```bash
-docker pull ghcr.io/emereshub/llm-code-review-service:v1.0.0
+git clone https://github.com/emereshub/llm-code-review-service.git
+cd llm-code-review-service
+````
+
+#### a) Local (without Docker)
+
+```bash
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
+* Update `.env` in the project root with:
+
+  ```bash
+  GEMINI_API_KEY=your_actual_key_here
+  ```
+
 ---
 
-### Step 2: Create the `reviews` folder (if it doesn't exist)
-
-The container will save code review output files here.
+### 2. Run Locally
 
 ```bash
-mkdir -p reviews
+uvicorn app.main:app --reload --port 8000
 ```
 
+* Open your browser and navigate to `http://localhost:8000/`.
+* You’ll see two dropzones and a **Review My Code** button.
+
 ---
 
-### Step 3: Run the Docker Container to Review Your Code File
-
-Replace `your_gemini_api_key` with your actual API key, and adjust the path to your Python script:
+### 4. Run with Docker (recommended)
 
 ```bash
-docker run --rm \
-  -v "$PWD/reviews:/app/reviews" \
+# Build or pull the latest image
+docker pull ghcr.io/emereshub/llm-code-review-service:v2.0.0
+# (or locally)
+docker build -t ghcr.io/emereshub/llm-code-review-service:v2.0.0 .
+
+# Run the container (mounts current folder as /app inside container)
+docker run --rm -it -p 8000:8000 \
+  -e GEMINI_API_KEY=your_actual_key \
   -v "$PWD:/app" \
-  -e GEMINI_API_KEY=your_gemini_api_key \
-  ghcr.io/emereshub/llm-code-review-service:v1.0.0 review /app/path_to_your_script.py
+  ghcr.io/emereshub/llm-code-review-service:v2.0.0
 ```
 
-* `$PWD` mounts your current working directory inside the container at `/app`
-* The reviews folder is mounted inside as `/app/reviews` to persist output
-* The service reads your code file and saves the review as `/app/reviews/<script_name>-review.txt`
+* In your host’s working directory, place any sample code and `standards.docx`.
+* The web UI is now available at `http://localhost:8000/`.
 
 ---
 
-### Step 4: Inspect the Review Output
+## ⚙️ Framework & Architecture
 
-Open the review file inside your local `reviews` folder to see detailed issues, suggestions, and severity levels.
+```
+Browser UI 
+  └─(upload files)─▶ FastAPI (Uvicorn)
+                       ├─ Parse multipart: extract code + standards
+                       ├─ Build FAISS index on standards
+                       ├─ Call pre-trained LLM with (code + top-k guideline chunks)
+                       └─ Return JSON { review, fix, score }
+                             ▲
+                             │
+                  Render Markdown→HTML via Marked.js
+                             │
+                         Browser UI
+```
+---
+
+## 🤝 Contributions
+
+We welcome bug reports, feature requests, and pull requests:
+
+1. Fork the repo
+2. Create your feature branch:
+
+   ```bash
+   git checkout -b feature/YourFeatureName
+   ```
+3. Commit your changes
+4. Push to your fork and open a PR
+---
+
+## 📚 Author & Portfolio
+
+**Emere Ejor**
+AI/ML Engineer & Full-Stack Developer
+[Portfolio](https://ai-ml-portfolio-h7hv.vercel.app/) • [GitHub](https://github.com/emereshub)
+
+Feel free to connect or raise issues/suggestions!
 
 ---
 
-## 💡 Why Use This Tool?
-
-* **Automates** coding standard enforcement — no more manual, inconsistent reviews
-* Produces **customized feedback** directly aligned to your team’s coding rules
-* Saves **time** and **improves code quality** across the team with instant results
-* Easy to integrate into dev workflows, CI pipelines, or pre-commit hooks
-
----
-
-## ⚙️ Additional Notes
-
-* Make sure Docker daemon is running before executing the `docker run` command
-* The `reviews` folder must exist on your host for outputs to be saved correctly
-* Only one file can be reviewed per run; repeat for multiple files
-* For advanced usage or to run the API server, refer to the full repository and local run instructions
-
----
-
-## Support & Feedback
-
-Please test the tool with your code files and share your feedback. This will help us refine the system and improve our team’s coding standards enforcement.
-
----
-
-**Thank you!**
-
+> © 2025 Emere Ejor. All rights reserved.
