@@ -9,3 +9,6 @@ sentence-transformers
 python-docx
 langchain-google-genai
 langchain-huggingface
+jinja2
+aiofiles
+python-multipart

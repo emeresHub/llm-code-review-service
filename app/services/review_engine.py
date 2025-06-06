@@ -1,77 +1,102 @@
+# app/services/review_engine.py
+
 import os
+import re
 import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
-CODING_STANDARDS_PATH = "standards/coding_standards.docx"
+_model = None
 
-def load_coding_standards_text():
-    import docx
-    doc = docx.Document(CODING_STANDARDS_PATH)
-    full_text = [para.text for para in doc.paragraphs]
-    return "\n".join(full_text)
+def get_llm():
+    """
+    Lazily initialize (and cache) the Google Gemini client.
+    """
+    global _model
+    if _model is None:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+        genai.configure(api_key=api_key)
+        _model = ChatGoogleGenerativeAI(
+            model="models/gemini-1.5-flash-latest",
+            google_api_key=api_key
+        )
+    return _model
 
-def initialize_faiss_db():
-    standards_text = load_coding_standards_text()
+def build_faiss_index(standards_text: str):
+    """
+    Split the given standards_text into overlapping chunks,
+    embed them with HuggingFace, and build a FAISS index in memory.
+    """
     splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
     chunks = splitter.split_text(standards_text)
-
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     return FAISS.from_texts(chunks, embeddings)
 
-# Delay creating db, model, and Gemini config to runtime, after env loaded
-db = None
-model = None
+def get_top_guidelines(code: str, standards_text: str, top_k: int = 3) -> str:
+    """
+    Build a FAISS index on-the-fly from the provided standards_text
+    (instead of loading a single docx), then similarity search on code.
+    Returns the top_k chunks joined by newline.
+    """
+    db = build_faiss_index(standards_text)
+    docs = db.similarity_search(code, k=top_k)
+    return "\n".join(doc.page_content for doc in docs)
 
-def initialize():
-    global db, model
-    API_KEY = os.getenv("GEMINI_API_KEY")
-    if not API_KEY:
-        raise ValueError("GEMINI_API_KEY env variable not set")
-
-    genai.configure(api_key=API_KEY)
-    model = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash-latest", google_api_key=API_KEY)
-    db = initialize_faiss_db()
-
-def llm(prompt: str) -> str:
-    global model
-    if model is None:
-        initialize()
-    return model.invoke(prompt).content
-
-def get_relevant_guidelines(code_snippet: str, top_k: int = 3) -> str:
-    global db
-    if db is None:
-        initialize()
-    docs = db.similarity_search(code_snippet, k=top_k)
-    return "\n".join([doc.page_content if hasattr(doc, "page_content") else doc for doc in docs])
-
-def generate_code_review(code: str) -> str:
-    standards = get_relevant_guidelines(code)
+def generate_code_review_with_standards(code: str, standards_text: str) -> tuple[str, float | None]:
+    """
+    1. Call get_top_guidelines(code, standards_text) to get relevant snippets.
+    2. Craft a Gemini prompt that asks Gemini to:
+       - Produce a Markdown bullet list of issues + suggestions + severity.
+       - Append a final line “Score: X.YZ” (where X.YZ ∈ [0.00, 1.00]).
+    3. Invoke Gemini via get_llm().invoke(prompt).content → a single string.
+    4. Parse out “Score: <number>” from the end via regex.
+    5. Return (full_markdown_review, parsed_score_value_or_None).
+    """
+    guidelines = get_top_guidelines(code, standards_text)
     prompt = f"""You are a senior code reviewer.
 
 Here are the relevant code review guidelines:
-{standards}
+{guidelines}
 
-Please review the following code and:
-- List all issues as bullet points
-- Provide suggestions for improvements
-- Indicate severity (Low, Medium, High)
+Please review the following code and produce output in this format:
+
+1. Start with a Markdown bullet‐list of all issues and suggestions, indicating severity (Low/Medium/High).
+2. At the very end, on its own line, write: "Score: X.YZ", where X.YZ is a decimal between 0.00 and 1.00 representing the overall code quality (higher is better).
 
 Code:
 {code}
 """
-    return llm(prompt)
+    response = get_llm().invoke(prompt).content
 
-def generate_suggested_fix(code: str) -> str:
-    standards = get_relevant_guidelines(code)
+    # Extract “Score: <number>” from the final lines (if present)
+    score_match = re.search(r"^Score:\s*([0-1](?:\.\d{1,2})?)\s*$", response, flags=re.MULTILINE)
+    if score_match:
+        try:
+            score_value = float(score_match.group(1))
+        except ValueError:
+            score_value = None
+    else:
+        score_value = None
+
+    return response, score_value
+
+def generate_suggested_fix_with_standards(code: str, standards_text: str) -> str:
+    """
+    1. Call get_top_guidelines(code, standards_text) to get relevant snippets.
+    2. Craft a Gemini prompt that instructs Gemini to rewrite the code so it fully
+       complies with those standards. Return only the code block (no commentary).
+    3. Invoke Gemini via get_llm().invoke(...) and return the content.
+    """
+    guidelines = get_top_guidelines(code, standards_text)
     prompt = f"""You are a senior software engineer.
 
 You must rewrite the code below to fully comply with the following coding standards:
 
-{standards}
+{guidelines}
 
 Instructions:
 - Apply every rule listed above
@@ -82,4 +107,4 @@ Instructions:
 Code:
 {code}
 """
-    return llm(prompt)
+    return get_llm().invoke(prompt).content
