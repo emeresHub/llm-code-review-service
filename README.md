@@ -1,4 +1,3 @@
-```markdown
 # 🔍 AuditLens – AI-Powered Code Review
 
 A lightweight web app where you upload your code and custom coding-standards document (DOCX/TXT) to get instant, AI-powered review comments, suggested fixes, and a quality score. It uses FAISS to retrieve only the most relevant rules and a pre-trained LLM to generate feedback that matches your team’s standards.
