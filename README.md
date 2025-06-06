@@ -1,33 +1,38 @@
 # SmartCodeReview
 
-A lightweight web app that lets you upload code and custom coding standards to get AI-powered reviews and suggested fixes instantly.
+AI-Powered web app for instant code reviews against **your** custom coding standards.
 
 ---
 
-## 🚀 Project Overview
+## 🚀 Overview
 
-* **What it does:**
+1. **Upload** your code file (any language).
+2. **Upload** your “coding standards” document (`.docx` or `.txt`).
+3. **FAISS** selects the most relevant rules.
+4. A **pre-trained LLM** generates:
 
-  1. You upload a code file (any language).
-  2. You upload a “coding standards” document (`.docx` or `.txt`).
-  3. The app uses FAISS to pick the most relevant rules, then sends both code + rules to a pre-trained LLM.
-  4. The LLM returns a Markdown-formatted review (with severity labels) and a suggested fix.
-  5. Your browser renders the results—no more copy/pasting or manual formatting.
+   * A **Markdown review** (bullet list + severity).
+   * A **suggested fix** (code block).
+   * A **quality score** (0–1).
+5. **Browser** renders the results as HTML—no copying or formatting required.
 
-* **Why it matters:**
+**Why It Matters**
 
-  * Enforces **your team’s real coding rules**, not generic AI heuristics.
-  * Delivers **consistent, explainable** feedback on every PR.
-  * Saves hours of manual code reviewing and reduces merge-conflict churn.
+* Enforces your team’s actual rules, not generic AI tips.
+* Delivers consistent, explainable feedback.
+* Saves hours of manual reviewing and reduces errors.
 
 ---
 
-## 🖼️ Example Results
+## 🖼️ Example Output
+
+<details>
+<summary>Click to expand Markdown preview</summary>
 
 ````markdown
 ⭐ **Review Comments**  
-• **High:** Missing docstrings for `add_numbers` and `greet`—docstrings are required by guideline 3.  
-• **Medium:** `greet` uses string concatenation; use f-strings for readability.  
+• **High:** Missing docstrings for `add_numbers` and `greet` (guideline 3).  
+• **Medium:** `greet` uses string concatenation; use f-strings instead.  
 • **Low:** No blank line separating functions (guideline 8).
 
 ⭐ **Suggested Fix**
@@ -35,7 +40,6 @@ A lightweight web app that lets you upload code and custom coding standards to g
 def add_numbers(a: int, b: int) -> int:
     """
     Add two numbers together.
-
     :param a: first number
     :param b: second number
     :return: sum of a and b
@@ -45,7 +49,6 @@ def add_numbers(a: int, b: int) -> int:
 def greet(name: str) -> None:
     """
     Print a greeting message.
-
     :param name: The name to greet.
     """
     print(f"Hello, {name}")
@@ -55,7 +58,7 @@ def greet(name: str) -> None:
 
 ````
 
-_In your browser, this renders as neatly styled HTML, complete with colored severity badges and a “Code Quality Score” box at the top._
+</details>
 
 ---
 
@@ -63,12 +66,10 @@ _In your browser, this renders as neatly styled HTML, complete with colored seve
 
 ### Prerequisites
 
-1. **Python 3.9+** (for local run)  
-2. **Docker (optional)**  
-3. **GEMINI_API_KEY** (or any LLM key stored in `.env`)  
-4. **python-multipart** installed (FastAPI needs it to parse file uploads)  
-
----
+- **Python 3.9+** (for local run)  
+- **Docker** (optional, recommended)  
+- **LLM API key** (stored in a `.env` as `GEMINI_API_KEY`)  
+- `python-multipart` (FastAPI file uploads)
 
 ### 1. Clone & Install
 
@@ -77,64 +78,50 @@ git clone https://github.com/emereshub/llm-code-review-service.git
 cd llm-code-review-service
 ````
 
-#### a) Local (without Docker)
+#### Local
 
 ```bash
-# Create a virtual environment
 python -m venv venv
 source venv/bin/activate
-
-# Install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt python-multipart
+echo "GEMINI_API_KEY=your_key_here" > .env
 ```
 
-*Add your API key to a `.env` file at the project root:*
+#### Docker
 
 ```bash
-GEMINI_API_KEY=your_actual_key_here
+# Pull or build v2.0.0
+docker pull ghcr.io/emereshub/llm-code-review-service:v2.0.0
+# or
+docker build -t ghcr.io/emereshub/llm-code-review-service:v2.0.0 .
+
+# Run (mount current directory)
+docker run --rm -it -p 8000:8000 \
+  -e GEMINI_API_KEY=your_key_here \
+  -v "$PWD:/app" \
+  ghcr.io/emereshub/llm-code-review-service:v2.0.0
 ```
 
----
-
-### 2. Run Locally
+### 2. Run Locally (no Docker)
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-* Open `http://localhost:8000/` in your browser. You’ll see two dropzones and a **Review My Code** button.
+Open [http://localhost:8000](http://localhost:8000), upload your code and standards, then click **Review My Code**.
 
 ---
 
-### 3. Run with Docker (recommended)
-
-```bash
-# Build or pull the latest image
-docker pull ghcr.io/emereshub/llm-code-review-service:v2.0.0
-# (or build locally)
-docker build -t ghcr.io/emereshub/llm-code-review-service:v2.0.0 .
-
-# Run the container (mount current folder as /app)
-docker run --rm -it -p 8000:8000 \
-  -e GEMINI_API_KEY=your_actual_key \
-  -v "$PWD:/app" \
-  ghcr.io/emereshub/llm-code-review-service:v2.0.0
-```
-
-* Place any sample code and `standards.docx` in your host directory.
-* Visit `http://localhost:8000/` to use the web UI.
-
----
-
-## ⚙️ Framework & Architecture
+## ⚙️ Architecture
 
 ```
 Browser UI 
   └─(upload files)─▶ FastAPI (Uvicorn)
-                       ├─ Parse multipart: extract code + standards
+                       ├─ Extract code + standards from multipart
                        ├─ Build FAISS index on standards
-                       ├─ Call pre-trained LLM with (code + top-k rules)
-                       └─ Return JSON { review, fix, score }
+                       ├─ Call LLM with (code + top-k rules)
+                       └─ Return JSON { review (MD), suggested_fix (MD), score }
                              ▲
                              │
                   Render Markdown→HTML via Marked.js
@@ -144,14 +131,12 @@ Browser UI
 
 ---
 
-## 📚 Author & Portfolio
+## 📚 Author
 
 **Emere Ejor**
 AI/ML Engineer & Full-Stack Developer
 [Portfolio](https://ai-ml-portfolio-h7hv.vercel.app/) • [GitHub](https://github.com/emereshub)
 
-Feel free to connect or raise issues/suggestions!
-
 ---
 
-> © 2025 Emere Ejor. All rights reserved.
+© 2025 Emere Ejor. All rights reserved.
